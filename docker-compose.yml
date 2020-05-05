@@ -1,0 +1,91 @@
+version: "3.4"
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    container_name: matrix-db
+    restart: unless-stopped
+    user: "${POSTGRES_USER}:${POSTGRES_GROUP}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    env_file: postgres.env
+    networks:
+      - local
+    depends_on:
+      - postgres_volume_provisioner
+    labels:
+      - diun.enable=true
+
+  synapse:
+    image: avhost/docker-matrix:${SYNAPSE_VERSION}
+    container_name: matrix-synapse
+    restart: unless-stopped
+    user: "${SYNAPSE_USER}:${SYNAPSE_GROUP}"
+    expose:
+      - 8008
+    ports:
+      - "3478:3478"
+      - "49152-49300:49152-49300"
+      - "49152-49300:49152-49300/udp"
+    volumes:
+      - synapse_data:/data
+    env_file: synapse.env
+    networks:
+      - local
+      - default
+    depends_on:
+      - postgres
+      - synapse_volume_provisioner
+    labels:
+      - diun.enable=true
+
+  riot:
+    image: vectorim/riot-web:${RIOT_VERSION}
+    container_name: matrix-riot
+    restart: unless-stopped
+    #user: "${RIOT_USER}:${RIOT_GROUP}" # The docker image does not support running as non-root.
+    volumes:
+      # The docker image is built in a way where we can use a named volume to mount /app
+      # We probably need to create our own image.
+      - ./config/config.json:/app/config.json:ro
+    env_file: riot.env
+    networks:
+      - default
+    depends_on:
+      - synapse
+    labels:
+      - diun.enable=true
+
+  postgres_volume_provisioner:
+    image: hasnat/volumes-provisioner
+    container_name: matrix-postgres-volume-provisioner
+    restart: "no"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      PROVISION_DIRECTORIES: "${POSTGRES_USER}:${POSTGRES_GROUP}:0700:/var/lib/postgresql/data"
+    network_mode: none
+
+  synapse_volume_provisioner:
+    image: hasnat/volumes-provisioner
+    container_name: matrix-synapse-volume-provisioner
+    restart: "no"
+    entrypoint: /bin/sh -c "/entrypoint.sh ; touch /data/volume_initialized"
+    volumes:
+      - synapse_data:/data
+    environment:
+      PROVISION_DIRECTORIES: "${SYNAPSE_USER}:${SYNAPSE_GROUP}:0700:/data"
+    network_mode: none
+
+volumes:
+  db_data:
+  synapse_data:
+
+networks:
+  local:
+  default:
+    external:
+      name: webproxy
+
