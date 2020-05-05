@@ -27,24 +27,24 @@ See [docs/reverse_proxy](https://github.com/matrix-org/synapse/blob/master/docs/
 ## Initial Setup
 ### Configuration
 1. Configure env files
-  1. Copy `samples/env` to `.env` and set desired values
-  2. Copy `samples/{postgres|synapse|riot}.env` files to top level directory and set desired values
+   1. Copy `samples/env` to `.env` and set desired values
+   2. Copy `samples/{postgres|synapse|riot}.env` files to top level directory and set desired values
 2. Configure postgres synapse user
-  1. Copy `samples/init.sql` to `config/init.sql`
-  2. Add postrgres synapse user password in `config/init.sql`
+   1. Copy `samples/init.sql` to `config/init.sql`
+   2. Add postrgres synapse user password in `config/init.sql`
 3. Configure Riot
-  1. Copy `samples/config.json` to `config/config.json`
-  2. Change desired settings
+   1. Copy `samples/config.json` to `config/config.json`
+   2. Change desired settings
 4. Run `setup/generate.sh`
 5. Configure Synapse
-  1. Copy `config/generated/homeserver.yaml` to `config/homeserver.yaml`
-  2. Configure `database` section
-  3. Make other desired changes (see sample)
+   1. Copy `config/generated/homeserver.yaml` to `config/homeserver.yaml`
+   2. Configure `database` section
+   3. Make other desired changes (see sample)
 6. Configure Coturn
-  1. Copy `config/generated/turnserver.conf` to `config/turnserver.conf`
-  2. Add `min-port=49152` and `max-port=49300` or desired range
-  3. Be sure to update the port ranges in `docker-compose.yml` if you change these values
-  4. Make other desired changes to `config/turnserver.conf`
+   1. Copy `config/generated/turnserver.conf` to `config/turnserver.conf`
+   2. Add `min-port=49152` and `max-port=49300` or desired range
+   3. Be sure to update the port ranges in `docker-compose.yml` if you change these values
+   4. Make other desired changes to `config/turnserver.conf`
 
 ### Initialize
 1. Run `setup/init.sh`
@@ -53,10 +53,10 @@ See [docs/reverse_proxy](https://github.com/matrix-org/synapse/blob/master/docs/
 ### Create Admin User
 1. Register your user
 2. Make user an admin:
-  1. `docker-compose exec postgres bash`
-  2. `psql -U postgress`
-  3. `\c synapse`
-  4. `UPDATE users SET admin = 1 WHERE name = '@foo:bar.com'`
+   1. `docker-compose exec postgres bash`
+   2. `psql -U postgress`
+   3. `\c synapse`
+   4. `UPDATE users SET admin = 1 WHERE name = '@foo:bar.com'`
 
 ## Configuration Examples
 
