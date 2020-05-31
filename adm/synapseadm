@@ -63,9 +63,10 @@ class SynapseNotices:
     def __init__(self, synapse_connection: SynapseConnection):
         self.synapse_connection = synapse_connection
 
-    def send_notice(self, message: str, user: str = 'notices'):
+    def send_notice(self, message: str, user: str):
+        user_string = user if user.startswith('@') else "@{}:sagf.io".format(user)
         return self.synapse_connection.post('/_synapse/admin/v1/send_server_notice',
-            '{"user_id": "@' + user + ':sagf.io", "content": {"msgtype": "m.text", "body": "' + message + '"}}').json()
+            '{"user_id": "' + user + '", "content": {"msgtype": "m.text", "body": "' + message + '"}}').json()
 
 
 @click.group()
@@ -146,7 +147,8 @@ def notice(ctx, user: str, message: str):
     if user:
         print(notices.send_notice(message, user))
     else:
-        print(notices.send_notice(message))
+        for user in ctx.obj['users'].list_users():
+            print(notices.send_notice(message, user))
 
 
 if "__main__" == __name__:
