@@ -31,6 +31,7 @@ services:
       - "49152-49300:49152-49300/udp"
     volumes:
       - synapse_data:/data
+      - whatsapp_data:/whatsapp_data:ro
     env_file: synapse.env
     networks:
       - local
@@ -53,6 +54,17 @@ services:
     env_file: riot.env
     networks:
       - default
+    depends_on:
+      - synapse
+    labels:
+      - diun.enable=true
+
+  whatsapp:
+    image: dock.mau.dev/tulir/mautrix-whatsapp:latest
+    container_name: matrix-whatsapp
+    restart: unless-stopped
+    volumes:
+      - whatsapp_data:/data
     depends_on:
       - synapse
     labels:
@@ -82,6 +94,7 @@ services:
 volumes:
   db_data:
   synapse_data:
+  whatsapp_data:
 
 networks:
   local:
