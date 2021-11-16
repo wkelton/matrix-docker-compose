@@ -42,7 +42,7 @@ services:
       - diun.enable=true
 
   riot:
-    image: vectorim/riot-web:${RIOT_VERSION}
+    image: vectorim/element-web:${ELEMENT_VERSION}
     container_name: matrix-riot
     restart: unless-stopped
     #user: "${RIOT_USER}:${RIOT_GROUP}" # The docker image does not support running as non-root.
@@ -50,7 +50,7 @@ services:
       # The docker image is built in a way where we can use a named volume to mount /app
       # We probably need to create our own image.
       - ./config/config.json:/app/config.json:ro
-    env_file: riot.env
+    env_file: element.env
     networks:
       - default
     depends_on:

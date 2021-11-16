@@ -8,7 +8,7 @@
             "base_url": "https://vector.im"
         }
     },
-    "permalinkPrefix": "https://riot.domain.com",
+    "permalinkPrefix": "https://element.domain.com",
     "disable_custom_urls": false,
     "disable_guests": true,
     "disable_login_language_selector": false,

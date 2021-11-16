@@ -1,5 +1,5 @@
 .env
 postgres.env
 synapse.env
-riot.env
+element.env
 config/

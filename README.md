@@ -5,7 +5,7 @@ Docker compose managed Synapse home server with Postgres and Riot.
 ## Docker Images
 * Synapse and Coturn: [avhost/docker-matrix](https://hub.docker.com/r/avhost/docker-matrix)
 * Postgres: [postgres](https://hub.docker.com/_/postgres)
-* Riot: [vectorim/riot-web](https://hub.docker.com/r/vectorim/riot-web)
+* Element: [vectorim/element-web](https://hub.docker.com/r/vectorim/element-web)
 * Volume provisioner: [hasnat/volumes-provisioner](https://hub.docker.com/r/hasnat/volumes-provisioner)
 
 ## Requirements
@@ -17,10 +17,10 @@ Docker compose managed Synapse home server with Postgres and Riot.
 ## Reverse Proxy
 You will need to have a reverse proxy setup. I use a variant of [jwilder/nginx-proxy](https://github.com/nginx-proxy/nginx-proxy).
 
-Assuming you have some base domain, domain.com, and you want the matrix client to use matrix.domain.com and Riot to be at riot.domain.com, you will need the following from your reverse proxy:
+Assuming you have some base domain, domain.com, and you want the matrix client to use matrix.domain.com and Element to be at element.domain.com, you will need the following from your reverse proxy:
 * Listen on 443 for matrix.domain.com and forward to the Synapse container (name: matrix-synapse) at port 8008
 * Listen on 8448 for domain.com and forward to the Synapse container (name: matrix-synapse) at port 8008
-* Listen on 443 for riot.domain.com and forward to the Riot container (name: matrix-riot) at port 80
+* Listen on 443 for element.domain.com and forward to the Riot container (name: matrix-element) at port 80
 
 See [docs/reverse_proxy](https://github.com/matrix-org/synapse/blob/master/docs/reverse_proxy.md) for Synapse docs on reverse proxying.
 
@@ -28,7 +28,7 @@ See [docs/reverse_proxy](https://github.com/matrix-org/synapse/blob/master/docs/
 ### Configuration
 1. Configure env files
    1. Copy `samples/env` to `.env` and set desired values
-   2. Copy `samples/{postgres|synapse|riot}.env` files to top level directory and set desired values
+   2. Copy `samples/{postgres|synapse|element}.env` files to top level directory and set desired values
 2. Configure postgres synapse user
    1. Copy `samples/init.sql` to `config/init.sql`
    2. Add postrgres synapse user password in `config/init.sql`
@@ -90,7 +90,7 @@ The following are the settings I have changed from the generated homeserver conf
   * `notif_from: "%(app)s Homeserver <email@gmail.com>"`
   * `app_name: "whatever"`
   * `enable_notifs: true`
-  * `client_base_url: "https://riot.domain.com"`
+  * `client_base_url: "https://element.domain.com"`
 * Keys under `push`:
   * `include_content: true`
 * Keys under `server_notices`:
@@ -123,9 +123,9 @@ See [docs/admin_api](https://github.com/matrix-org/synapse/tree/master/docs/admi
 * Matrix [FAQ](https://matrix.org/faq/#self-hosting)
 * Matrix [API](https://matrix.org/docs/spec/client_server/latest#get-well-known-matrix-client)
 
-### Riot Docs
-* Riot docs: [riot](https://github.com/vector-im/riot-web)
-* Configuration: [docs/config](https://github.com/vector-im/riot-web/blob/develop/docs/config.md)
+### Element Docs
+* Element docs: [element](https://github.com/vector-im/element-web)
+* Configuration: [docs/config](https://github.com/vector-im/element-web/blob/develop/docs/config.md)
 * Key backup:
   * [Serverfault - Where is the Riot keybackup stored?](https://serverfault.com/questions/984095/where-is-the-riot-keybackup-stored-chat-riot-matix-synapse)
   * [Storing megolm keys serverside](https://github.com/uhoreg/matrix-doc/blob/e2e_backup/proposals/1219-storing-megolm-keys-serverside.md)
