@@ -1,5 +1,6 @@
-.env
-postgres.env
-synapse.env
-element.env
+/.env
+/postgres.env
+/synapse.env
+/synapse_admin.env
+/element.env
 config/

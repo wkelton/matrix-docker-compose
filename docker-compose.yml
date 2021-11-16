@@ -41,6 +41,18 @@ services:
     labels:
       - diun.enable=true
 
+  synapse_admin:
+    image: awesometechnologies/synapse-admin
+    container_name: matrix-synapse-admin
+    restart: unless-stopped
+    env_file: synapse_admin.env
+    networks:
+      - default
+    depends_on:
+      - synapse
+    labels:
+      - diun.enable=true
+
   riot:
     image: vectorim/element-web:${ELEMENT_VERSION}
     container_name: matrix-riot
