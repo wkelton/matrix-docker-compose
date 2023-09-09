@@ -39,8 +39,8 @@ class SynapseConnection:
         self.port = port
         self.access_token = None
 
-        if not self.home_server and 'HOME_SERVER' in os.environ:
-            self.home_server = os.environ['HOME_SERVER']
+        if not self.home_server and "HOME_SERVER" in os.environ:
+            self.home_server = os.environ["HOME_SERVER"]
 
         self.domain = "{}.{}".format(synapse_subdomain, self.home_server) if synapse_subdomain else self.home_server
 
@@ -54,17 +54,18 @@ class SynapseConnection:
 
     def post(self, api: str, data: Dict[str, any] = None):
         data = json.dumps(data) if data else None
-        return requests.post(self.fq_api_url(api), data=data,
-            headers={"Authorization": "Bearer {}".format(self.access_token)})
+        return requests.post(
+            self.fq_api_url(api), data=data, headers={"Authorization": "Bearer {}".format(self.access_token)}
+        )
 
     def login(self, user: str, password: str):
-        if 'SYNAPSE_ACCESS_TOKEN' in os.environ:
-            self.access_token = os.environ['SYNAPSE_ACCESS_TOKEN']
+        if "SYNAPSE_ACCESS_TOKEN" in os.environ:
+            self.access_token = os.environ["SYNAPSE_ACCESS_TOKEN"]
         else:
             user = SynapseUser.from_str(user, self.home_server)
             data = {"type": "m.login.password", "user": user.mxid, "password": password}
-            response = requests.post(self.fq_api_url('/_matrix/client/r0/login'), json.dumps(data))
-            self.access_token = dict(response.json())['access_token']
+            response = requests.post(self.fq_api_url("/_matrix/client/r0/login"), json.dumps(data))
+            self.access_token = dict(response.json())["access_token"]
 
 
 class SynapseUsers:
@@ -72,12 +73,14 @@ class SynapseUsers:
         self.synapse_connection = synapse_connection
 
     def list_users(self):
-        response = self.synapse_connection.get('/_synapse/admin/v2/users?guests=false')
-        return [dict(raw)['name'] for raw in dict(response.json())['users']]
+        response = self.synapse_connection.get("/_synapse/admin/v2/users?guests=false")
+        return [dict(raw)["name"] for raw in dict(response.json())["users"]]
 
     def get_ratelimit(self, user: str):
         user = SynapseUser.from_str(user, self.synapse_connection.home_server)
-        json_response = self.synapse_connection.get("/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid)).json()
+        json_response = self.synapse_connection.get(
+            "/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid)
+        ).json()
         json_response["user"] = user.mxid
         return json_response
 
@@ -88,7 +91,9 @@ class SynapseUsers:
             data["messages_per_second"] = messages_per_second
         if burst_count is not None:
             data["burst_count"] = burst_count
-        json_response = self.synapse_connection.post("/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid), data).json()
+        json_response = self.synapse_connection.post(
+            "/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid), data
+        ).json()
         json_response["user"] = user.mxid
         return json_response
 
@@ -96,7 +101,7 @@ class SynapseUsers:
 class SynapseRooms:
     def __init__(self, synapse_connection: SynapseConnection):
         self.synapse_connection = synapse_connection
-        self.rooms = dict(self.synapse_connection.get('/_synapse/admin/v1/rooms').json())['rooms']
+        self.rooms = dict(self.synapse_connection.get("/_synapse/admin/v1/rooms").json())["rooms"]
 
     def list_rooms(self):
         return self.rooms
@@ -104,8 +109,13 @@ class SynapseRooms:
     def media(self, room_id: str = None):
         rooms = self.rooms
         if room_id:
-            rooms = [room for room in self.rooms if room['room_id'] == room_id]
-        medias = {room['room_id']: dict(self.synapse_connection.get("/_synapse/admin/v1/room/{}/media".format(room['room_id'])).json()) for room in rooms}
+            rooms = [room for room in self.rooms if room["room_id"] == room_id]
+        medias = {
+            room["room_id"]: dict(
+                self.synapse_connection.get("/_synapse/admin/v1/room/{}/media".format(room["room_id"])).json()
+            )
+            for room in rooms
+        }
         return medias
 
 
@@ -116,25 +126,25 @@ class SynapseNotices:
     def send_notice(self, message: str, user: str):
         user = SynapseUser.from_str(user, self.synapse_connection.home_server)
         data = {"user_id": user.mxid, "content": {"msgtype": "m.text", "body": message}}
-        return self.synapse_connection.post('/_synapse/admin/v1/send_server_notice', data).json()
+        return self.synapse_connection.post("/_synapse/admin/v1/send_server_notice", data).json()
 
 
 @click.group()
-@click.option('--home-server', prompt='HOME_SERVER' not in os.environ)
-@click.option('--synapse-subdomain', default="matrix")
-@click.option('--port', type=int)
-@click.option('--protocol')
-@click.option('--admin', prompt='SYNAPSE_ACCESS_TOKEN' not in os.environ)
-@click.option('--password', prompt='SYNAPSE_ACCESS_TOKEN' not in os.environ, hide_input=True)
+@click.option("--home-server", prompt="HOME_SERVER" not in os.environ)
+@click.option("--synapse-subdomain", default="matrix")
+@click.option("--port", type=int)
+@click.option("--protocol")
+@click.option("--admin", prompt="SYNAPSE_ACCESS_TOKEN" not in os.environ)
+@click.option("--password", prompt="SYNAPSE_ACCESS_TOKEN" not in os.environ, hide_input=True)
 @click.pass_context
 def cli(ctx, home_server: str, synapse_subdomain: str, port: int, protocol: str, admin: str, password: str):
     synapse_connection = SynapseConnection(home_server, synapse_subdomain, port, protocol)
     synapse_connection.login(admin, password)
-    ctx.obj= {
-        'connection': synapse_connection,
-        'users': SynapseUsers(synapse_connection),
-        'rooms': SynapseRooms(synapse_connection),
-        'notices': SynapseNotices(synapse_connection),
+    ctx.obj = {
+        "connection": synapse_connection,
+        "users": SynapseUsers(synapse_connection),
+        "rooms": SynapseRooms(synapse_connection),
+        "notices": SynapseNotices(synapse_connection),
     }
 
 
@@ -142,25 +152,32 @@ def cli(ctx, home_server: str, synapse_subdomain: str, port: int, protocol: str,
 @click.pass_context
 def shell(ctx):
     conn = ctx.obj["connection"]
-    subprocess.run(["bash"], shell=True, env={**{'SYNAPSE_ACCESS_TOKEN': conn.access_token, "HOME_SERVER": conn.home_server, 'PS1': "synapseadm $ "}, **os.environ})
+    subprocess.run(
+        ["bash"],
+        shell=True,
+        env={
+            **{"SYNAPSE_ACCESS_TOKEN": conn.access_token, "HOME_SERVER": conn.home_server, "PS1": "synapseadm $ "},
+            **os.environ,
+        },
+    )
 
 
 @cli.command()
 @click.pass_context
 def version(ctx):
-    print(ctx.obj['connection'].get('/_synapse/admin/v1/server_version').json())
+    print(ctx.obj["connection"].get("/_synapse/admin/v1/server_version").json())
 
 
 @cli.command()
 @click.pass_context
 def token(ctx):
-    print(ctx.obj['connection'].access_token)
+    print(ctx.obj["connection"].access_token)
 
 
 @cli.command()
 @click.pass_context
 def users(ctx):
-    print(ctx.obj['users'].list_users())
+    print(ctx.obj["users"].list_users())
 
 
 @cli.command()
@@ -170,15 +187,15 @@ def users(ctx):
 @click.argument("user")
 def ratelimit(ctx, messages_per_second: int, burst_count: int, user: str):
     if messages_per_second is not None or burst_count is not None:
-        print(ctx.obj['users'].set_ratelimit(user, messages_per_second, burst_count))
+        print(ctx.obj["users"].set_ratelimit(user, messages_per_second, burst_count))
     else:
-        print(ctx.obj['users'].get_ratelimit(user))
+        print(ctx.obj["users"].get_ratelimit(user))
 
 
 @cli.command()
 @click.pass_context
 def rooms(ctx):
-    rooms = ctx.obj['rooms'].list_rooms()
+    rooms = ctx.obj["rooms"].list_rooms()
 
     print("{} rooms:".format(len(rooms)))
     for room in rooms:
@@ -186,14 +203,14 @@ def rooms(ctx):
 
 
 @cli.command()
-@click.option('--room-id')
+@click.option("--room-id")
 @click.pass_context
 def media(ctx, room_id: str):
-    medias = ctx.obj['rooms'].media(room_id)
+    medias = ctx.obj["rooms"].media(room_id)
 
     for room_id, media_info in medias.items():
-        local_media = media_info['local']
-        remote_media = media_info['remote']
+        local_media = media_info["local"]
+        remote_media = media_info["remote"]
         if len(local_media) + len(remote_media) > 0:
             print("{}:".format(room_id))
         for m in local_media:
@@ -205,19 +222,18 @@ def media(ctx, room_id: str):
 
 
 @cli.command()
-@click.option('--user')
+@click.option("--user")
 @click.argument("message")
 @click.pass_context
 def notice(ctx, user: str, message: str):
-    notices = ctx.obj['notices']    
+    notices = ctx.obj["notices"]
 
     if user:
         print(notices.send_notice(message, user))
     else:
-        for user in ctx.obj['users'].list_users():
+        for user in ctx.obj["users"].list_users():
             print(notices.send_notice(message, user))
 
 
 if "__main__" == __name__:
     cli()
-
