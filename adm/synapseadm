@@ -1,17 +1,48 @@
 #!/usr/bin/env python3
 
 import click
+import json
 import os
+import re
 import requests
 import subprocess
+from typing import Dict
+
+
+class SynapseUser:
+    def __init__(self, name: str, home_server: str):
+        self.name = name
+        self.home_server = home_server
+
+    @classmethod
+    def from_mxid(cls, mxid: str):
+        regex = re.compile(r"@?(\w+):((\w+)(\.(\w+))+)")
+        match = regex.match(mxid)
+        if match:
+            return cls(match.group(1), match.group(2))
+        return None
+
+    @classmethod
+    def from_str(cls, user_str: str, home_server: str):
+        user = cls.from_mxid(user_str)
+        return user if user else cls(user_str, home_server)
+
+    @property
+    def mxid(self):
+        return "@{}:{}".format(self.name, self.home_server)
 
 
 class SynapseConnection:
-    def __init__(self, domain: str, port: int = None, protocol: str = 'https'):
-        self.protocol = protocol
-        self.domain = domain
+    def __init__(self, home_server: str, synapse_subdomain: str = None, port: int = None, protocol: str = None):
+        self.protocol = protocol if protocol else "https"
+        self.home_server = home_server
         self.port = port
         self.access_token = None
+
+        if not self.home_server and 'HOME_SERVER' in os.environ:
+            self.home_server = os.environ['HOME_SERVER']
+
+        self.domain = "{}.{}".format(synapse_subdomain, self.home_server) if synapse_subdomain else self.home_server
 
     def fq_api_url(self, api: str):
         if self.port:
@@ -21,7 +52,8 @@ class SynapseConnection:
     def get(self, api: str):
         return requests.get(self.fq_api_url(api), headers={"Authorization": "Bearer {}".format(self.access_token)})
 
-    def post(self, api: str, data: str = None):
+    def post(self, api: str, data: Dict[str, any] = None):
+        data = json.dumps(data) if data else None
         return requests.post(self.fq_api_url(api), data=data,
             headers={"Authorization": "Bearer {}".format(self.access_token)})
 
@@ -29,8 +61,9 @@ class SynapseConnection:
         if 'SYNAPSE_ACCESS_TOKEN' in os.environ:
             self.access_token = os.environ['SYNAPSE_ACCESS_TOKEN']
         else:
-            response = requests.post(self.fq_api_url('/_matrix/client/r0/login'),
-                data='{"type":"m.login.password", "user":"' + user + '", "password":"' + password + '"}')
+            user = SynapseUser.from_str(user, self.home_server)
+            data = {"type": "m.login.password", "user": user.mxid, "password": password}
+            response = requests.post(self.fq_api_url('/_matrix/client/r0/login'), json.dumps(data))
             self.access_token = dict(response.json())['access_token']
 
 
@@ -41,6 +74,23 @@ class SynapseUsers:
     def list_users(self):
         response = self.synapse_connection.get('/_synapse/admin/v2/users?guests=false')
         return [dict(raw)['name'] for raw in dict(response.json())['users']]
+
+    def get_ratelimit(self, user: str):
+        user = SynapseUser.from_str(user, self.synapse_connection.home_server)
+        json_response = self.synapse_connection.get("/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid)).json()
+        json_response["user"] = user.mxid
+        return json_response
+
+    def set_ratelimit(self, user: str, messages_per_second: int, burst_count: int):
+        user = SynapseUser.from_str(user, self.synapse_connection.home_server)
+        data = {}
+        if messages_per_second is not None:
+            data["messages_per_second"] = messages_per_second
+        if burst_count is not None:
+            data["burst_count"] = burst_count
+        json_response = self.synapse_connection.post("/_synapse/admin/v1/users/{}/override_ratelimit".format(user.mxid), data).json()
+        json_response["user"] = user.mxid
+        return json_response
 
 
 class SynapseRooms:
@@ -64,17 +114,21 @@ class SynapseNotices:
         self.synapse_connection = synapse_connection
 
     def send_notice(self, message: str, user: str):
-        user_string = user if user.startswith('@') else "@{}:sagf.io".format(user)
-        return self.synapse_connection.post('/_synapse/admin/v1/send_server_notice',
-            '{"user_id": "' + user + '", "content": {"msgtype": "m.text", "body": "' + message + '"}}').json()
+        user = SynapseUser.from_str(user, self.synapse_connection.home_server)
+        data = {"user_id": user.mxid, "content": {"msgtype": "m.text", "body": message}}
+        return self.synapse_connection.post('/_synapse/admin/v1/send_server_notice', data).json()
 
 
 @click.group()
+@click.option('--home-server', prompt='HOME_SERVER' not in os.environ)
+@click.option('--synapse-subdomain', default="matrix")
+@click.option('--port', type=int)
+@click.option('--protocol')
 @click.option('--admin', prompt='SYNAPSE_ACCESS_TOKEN' not in os.environ)
 @click.option('--password', prompt='SYNAPSE_ACCESS_TOKEN' not in os.environ, hide_input=True)
 @click.pass_context
-def cli(ctx, admin: str, password: str):
-    synapse_connection = SynapseConnection('matrix.sagf.io')
+def cli(ctx, home_server: str, synapse_subdomain: str, port: int, protocol: str, admin: str, password: str):
+    synapse_connection = SynapseConnection(home_server, synapse_subdomain, port, protocol)
     synapse_connection.login(admin, password)
     ctx.obj= {
         'connection': synapse_connection,
@@ -87,7 +141,8 @@ def cli(ctx, admin: str, password: str):
 @cli.command()
 @click.pass_context
 def shell(ctx):
-    subprocess.run(["bash"], shell=True, env={**{'SYNAPSE_ACCESS_TOKEN': ctx.obj['connection'].access_token, 'PS1': "synapseadm $ "}, **os.environ})
+    conn = ctx.obj["connection"]
+    subprocess.run(["bash"], shell=True, env={**{'SYNAPSE_ACCESS_TOKEN': conn.access_token, "HOME_SERVER": conn.home_server, 'PS1': "synapseadm $ "}, **os.environ})
 
 
 @cli.command()
@@ -106,6 +161,18 @@ def token(ctx):
 @click.pass_context
 def users(ctx):
     print(ctx.obj['users'].list_users())
+
+
+@cli.command()
+@click.pass_context
+@click.option("--messages-per-second", type=int)
+@click.option("--burst-count", type=int)
+@click.argument("user")
+def ratelimit(ctx, messages_per_second: int, burst_count: int, user: str):
+    if messages_per_second is not None or burst_count is not None:
+        print(ctx.obj['users'].set_ratelimit(user, messages_per_second, burst_count))
+    else:
+        print(ctx.obj['users'].get_ratelimit(user))
 
 
 @cli.command()
