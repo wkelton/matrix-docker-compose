@@ -23,21 +23,35 @@ services:
     container_name: matrix-synapse
     restart: unless-stopped
     user: "${SYNAPSE_USER}:${SYNAPSE_GROUP}"
-    expose:
-      - 8008
-    ports:
-      - "3478:3478"
-      - "49152-49254:49152-49254"
-      - "49152-49254:49152-49254/udp"
     volumes:
       - synapse_data:/data
     env_file: synapse.env
+    environment:
+      - COTURN_ENABLE=false
     networks:
       - local
       - default
     depends_on:
       - postgres
       - synapse_volume_provisioner
+    labels:
+      - diun.enable=true
+
+  coturn:
+    image: coturn/coturn:${COTURN_VERSION}
+    container_name: matrix-coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200"
+      - "49160-49200:49160-49200/udp"
+    volumes:
+      - ./config/turnserver.conf:/etc/coturn/turnserver.conf
+    env_file: coturn.env
+    networks:
+      - local
+      - default
     labels:
       - diun.enable=true
 
@@ -63,10 +77,44 @@ services:
       # We probably need to create our own image.
       - ./config/config.json:/app/config.json:ro
     env_file: element.env
+    environment:
+      - ELEMENT_WEB_PORT=8080
     networks:
       - default
     depends_on:
       - synapse
+    labels:
+      - diun.enable=true
+
+  # livekit setup based on https://fariszr.com/matrix-rtc-setup-with-docker-caddy/
+  livekit-jwt:
+    image: ghcr.io/element-hq/lk-jwt-service:${LIVEKIT_JWT_VERSION}
+    container_name: matrix-livekit-jwt
+    restart: unless-stopped
+    env_file: livekit-jwt.env
+    networks:
+      - local
+      - default
+    depends_on:
+      - synapse
+    labels:
+      - diun.enable=true
+
+  livekit:
+    image: livekit/livekit-server:${LIVEKIT_VERSION}
+    container_name: matrix-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "50100-50200:50100-50200/udp" # UDP port range for media over WebRTC
+    volumes:
+      - ./config/livekit-config.yaml:/etc/livekit.yaml:ro
+    env_file: livekit.env
+    networks:
+      - local
+      - default
+    depends_on:
+      - livekit-jwt
     labels:
       - diun.enable=true
 

@@ -3,4 +3,7 @@
 /synapse.env
 /synapse_admin.env
 /element.env
+/coturn.env
+/livekit.env
+/livekit-jwt.env
 config/
